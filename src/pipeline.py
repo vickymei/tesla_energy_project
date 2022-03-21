@@ -2,50 +2,50 @@ from dotenv import load_dotenv
 import os
 import requests
 import json
-import pandas as pd
-from pandas.io.json import json_normalize
+import schedule
+from datetime import datetime
+import time
 
 
 def get_sites_from_api():
-    """Return a list"""
+    """Return list of all existing sites."""
     load_dotenv()
     json_data = requests.get(
         "https://te-data-test.herokuapp.com/api/sites?token="+os.environ.get("api-token")).json()
-    print("Getting current weather data from OpenWeatherMap.org..........")
+    sites = json_data["sites"]
+    return sites
+
+
+def get_signals_from_api(site):
+    """Return site signal data."""
+    load_dotenv()
+    json_data = requests.get(
+        "https://te-data-test.herokuapp.com/api/signals?token="+os.environ.get("api-token")+f"&site={site}").json()
     return json_data
 
 
-def write_weather_data_in_json_file(json_data):
-    """ Save current weather data to a json file.
-        Name the file by the Unix Timestamp.
-    """
-    name = 'data'  ## + str(json_data['timestamp'])
-    filename = r"data_cache/%s.json" % name
-    with open(filename, 'w') as f:
-        json.dump(json_data, f)
-    return filename
-
-
-def convert_json_to_dict(filename):
-    """ Convert json file to python dictionary
-    """
-    with open(filename, 'r') as JSON:
-        json_dict = json.load(JSON)
-    return json_dict
-
-
-def convert_dict_to_df(filename):
-    """ Convert python dictionary to pandas dataframe
-    """
-    return json_normalize(convert_json_to_dict(filename))
-
-
 def main():
-    json_data = get_sites_from_api()
-    file_name = write_weather_data_in_json_file(json_data)
-    df = convert_dict_to_df(file_name)
-    return df
+    """Write signal data to local file system in json format every minute. """
+    sites = get_sites_from_api()
+    site_data = []
+    timestamp_now = datetime.now()
+    timestamp_file_name = f"signal-{timestamp_now.year}-{timestamp_now.month}-{timestamp_now.day}-{timestamp_now.hour}-{timestamp_now.minute}-{timestamp_now.second}.json"
+    for site in sites:
+        try:
+            site_data.append(get_signals_from_api(site))
+        except:
+            error_data = {
+                'signals': {'SITE_SM_batteryInstPower': None, 'SITE_SM_siteInstPower': None, 'SITE_SM_solarInstPower': None},
+                'site': site, 'timestamp': None}
+            site_data.append(error_data)
+
+        with open(f"data/{timestamp_file_name}", 'w') as f:
+            json.dump(site_data, f)
+    return 'success'
 
 
-if __name__ == "__main__":
-    main()
+schedule.every(30).seconds.do(main)
+
+while(True):
+    schedule.run_pending()
+    time.sleep(50)

@@ -17,4 +17,4 @@ This Notebook will explain this project in the following order:
 
 **Part** 4. More Anomaly Detection Thoughts
 
-Please reference jupyter notebook for more documentation for this project. 
+Please reference jupyter notebook[https://github.com/vickymei/tesla_energy_project/blob/main/analysis.ipynb]  for more documentation for this project. 
